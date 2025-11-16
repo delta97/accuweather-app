@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCloudSun, faSpinner, faExclamationCircle } from '@fortawesome/free-solid-svg-icons';
 import LocationSearch from './components/LocationSearch';
@@ -23,6 +23,14 @@ function App() {
   const [temperatureUnit, setTemperatureUnit] = useState<TemperatureUnit>('fahrenheit');
 
   const theme = weatherData ? getWeatherTheme(weatherData.weathercode) : null;
+
+  // Refetch weather data when temperature unit changes (only if we already have data)
+  useEffect(() => {
+    if (selectedLocation && weatherData) {
+      handleSearch();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [temperatureUnit]);
 
   const handleSearch = async () => {
     if (!selectedLocation) {
