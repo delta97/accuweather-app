@@ -42,39 +42,102 @@ function App() {
     setError(null);
 
     try {
-      // Calculate date range: 5 days before and after the selected date
+      // Fetch only the selected date initially
+      const rangeData = await getHistoricalWeatherRange(
+        selectedLocation.latitude,
+        selectedLocation.longitude,
+        selectedDate,
+        selectedDate,
+        temperatureUnit
+      );
+
+      setWeatherRange(rangeData);
+      setWeatherData(rangeData[0]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
+      setWeatherData(null);
+      setWeatherRange([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadPrevious5Days = async () => {
+    if (!selectedLocation || !selectedDate) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
       const selectedDateObj = new Date(selectedDate);
       const startDateObj = new Date(selectedDateObj);
       startDateObj.setDate(startDateObj.getDate() - 5);
-      const endDateObj = new Date(selectedDateObj);
-      endDateObj.setDate(endDateObj.getDate() + 5);
 
       const startDate = startDateObj.toISOString().split('T')[0];
-      const endDate = endDateObj.toISOString().split('T')[0];
 
-      // Fetch all 11 days in a single API call
+      // Fetch 6 days (5 before + selected day)
       const rangeData = await getHistoricalWeatherRange(
         selectedLocation.latitude,
         selectedLocation.longitude,
         startDate,
+        selectedDate,
+        temperatureUnit
+      );
+
+      setWeatherRange(rangeData);
+      // Keep the same selected day data
+      const selectedDayData = rangeData.find(day => day.date === selectedDate);
+      if (selectedDayData) {
+        setWeatherData(selectedDayData);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLoadNext5Days = async () => {
+    if (!selectedLocation || !selectedDate) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const selectedDateObj = new Date(selectedDate);
+      const endDateObj = new Date(selectedDateObj);
+      endDateObj.setDate(endDateObj.getDate() + 5);
+
+      // Ensure end date doesn't exceed yesterday
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+
+      // Cap the end date at yesterday
+      if (endDateObj > yesterday) {
+        endDateObj.setTime(yesterday.getTime());
+      }
+
+      const endDate = endDateObj.toISOString().split('T')[0];
+
+      // Fetch from selected day to 5 days after
+      const rangeData = await getHistoricalWeatherRange(
+        selectedLocation.latitude,
+        selectedLocation.longitude,
+        selectedDate,
         endDate,
         temperatureUnit
       );
 
       setWeatherRange(rangeData);
-
-      // Find the selected date in the range
+      // Keep the same selected day data
       const selectedDayData = rangeData.find(day => day.date === selectedDate);
       if (selectedDayData) {
         setWeatherData(selectedDayData);
-      } else {
-        // Fallback: use the middle day (day 5, index 5)
-        setWeatherData(rangeData[5] || rangeData[0]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
-      setWeatherData(null);
-      setWeatherRange([]);
     } finally {
       setLoading(false);
     }
@@ -174,6 +237,9 @@ function App() {
                   weatherRange={weatherRange}
                   selectedDate={selectedDate}
                   temperatureUnit={temperatureUnit}
+                  onLoadPrevious={handleLoadPrevious5Days}
+                  onLoadNext={handleLoadNext5Days}
+                  loading={loading}
                 />
               </div>
             )}

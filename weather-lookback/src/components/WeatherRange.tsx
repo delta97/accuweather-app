@@ -6,6 +6,8 @@ import {
   faSnowflake,
   faBolt,
   faSmog,
+  faChevronLeft,
+  faChevronRight,
 } from '@fortawesome/free-solid-svg-icons';
 import type { WeatherData, TemperatureUnit } from '../services/weatherApi';
 import { getWeatherDescription } from '../services/weatherApi';
@@ -14,10 +16,28 @@ interface WeatherRangeProps {
   weatherRange: WeatherData[];
   selectedDate: string;
   temperatureUnit: TemperatureUnit;
+  onLoadPrevious?: () => void;
+  onLoadNext?: () => void;
+  loading?: boolean;
 }
 
-export default function WeatherRange({ weatherRange, selectedDate, temperatureUnit }: WeatherRangeProps) {
+export default function WeatherRange({
+  weatherRange,
+  selectedDate,
+  temperatureUnit,
+  onLoadPrevious,
+  onLoadNext,
+  loading = false
+}: WeatherRangeProps) {
   const tempSymbol = temperatureUnit === 'fahrenheit' ? '°F' : '°C';
+
+  // Check if we have only one day (initial state)
+  const showOnlySelectedDay = weatherRange.length === 1;
+
+  // Check if selected day is first or last in range
+  const selectedIndex = weatherRange.findIndex(w => w.date === selectedDate);
+  const canLoadPrevious = selectedIndex !== 0 || showOnlySelectedDay;
+  const canLoadNext = selectedIndex !== weatherRange.length - 1 || showOnlySelectedDay;
 
   const getWeatherIcon = (code: number) => {
     if (code === 0 || code === 1) return faSun;
@@ -43,8 +63,32 @@ export default function WeatherRange({ weatherRange, selectedDate, temperatureUn
 
   return (
     <div className="w-full">
-      <h3 className="text-lg font-semibold mb-4 opacity-90">Weather Timeline</h3>
-      <div className="grid grid-cols-11 gap-2">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold opacity-90">Weather Timeline</h3>
+        <div className="flex gap-2">
+          {onLoadPrevious && canLoadPrevious && (
+            <button
+              onClick={onLoadPrevious}
+              disabled={loading}
+              className="px-4 py-2 bg-white/30 hover:bg-white/40 disabled:bg-white/20 disabled:opacity-50 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm shadow-md hover:shadow-lg disabled:cursor-not-allowed"
+            >
+              <FontAwesomeIcon icon={faChevronLeft} />
+              Previous 5 Days
+            </button>
+          )}
+          {onLoadNext && canLoadNext && (
+            <button
+              onClick={onLoadNext}
+              disabled={loading}
+              className="px-4 py-2 bg-white/30 hover:bg-white/40 disabled:bg-white/20 disabled:opacity-50 rounded-lg transition-all duration-200 flex items-center gap-2 font-medium text-sm shadow-md hover:shadow-lg disabled:cursor-not-allowed"
+            >
+              Next 5 Days
+              <FontAwesomeIcon icon={faChevronRight} />
+            </button>
+          )}
+        </div>
+      </div>
+      <div className={`grid gap-2 ${weatherRange.length === 1 ? 'grid-cols-1 max-w-xs mx-auto' : 'grid-cols-' + Math.min(weatherRange.length, 11)}`} style={{ gridTemplateColumns: `repeat(${Math.min(weatherRange.length, 11)}, minmax(0, 1fr))` }}>
         {weatherRange.map((weather, index) => {
           const isSelected = isSelectedDate(weather.date);
           return (
