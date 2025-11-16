@@ -159,35 +159,71 @@ export const searchLocations = async (query: string): Promise<Location[]> => {
   }));
 };
 
-// Fetch historical weather data
-export const getHistoricalWeather = async (
+export type TemperatureUnit = 'celsius' | 'fahrenheit';
+
+// Fetch historical weather data for a date range
+export const getHistoricalWeatherRange = async (
   latitude: number,
   longitude: number,
-  date: string
-): Promise<WeatherData> => {
-  const url = `https://api.open-meteo.com/v1/archive?latitude=${latitude}&longitude=${longitude}&start_date=${date}&end_date=${date}&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,weathercode,windspeed_10m_max,winddirection_10m_dominant,sunrise,sunset&timezone=auto`;
+  startDate: string,
+  endDate: string,
+  temperatureUnit: TemperatureUnit = 'fahrenheit'
+): Promise<WeatherData[]> => {
+  // Parse the requested dates
+  const requestedStartDate = new Date(startDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Calculate days difference
+  const daysDiff = Math.floor((today.getTime() - requestedStartDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  // Open-Meteo archive API only works for dates older than ~5 days
+  // Use forecast API for recent/future dates, archive API for older dates
+  const useArchive = daysDiff > 5;
+
+  const baseUrl = useArchive
+    ? 'https://archive-api.open-meteo.com/v1/archive'
+    : 'https://api.open-meteo.com/v1/forecast';
+
+  const tempUnit = temperatureUnit === 'fahrenheit' ? 'fahrenheit' : 'celsius';
+  const windUnit = temperatureUnit === 'fahrenheit' ? 'mph' : 'kmh';
+  const precipUnit = temperatureUnit === 'fahrenheit' ? 'inch' : 'mm';
+
+  const url = `${baseUrl}?latitude=${latitude}&longitude=${longitude}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max,temperature_2m_min,temperature_2m_mean,precipitation_sum,weathercode,windspeed_10m_max,winddirection_10m_dominant,sunrise,sunset&temperature_unit=${tempUnit}&windspeed_unit=${windUnit}&precipitation_unit=${precipUnit}&timezone=auto`;
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error('Failed to fetch weather data');
+    throw new Error(`Failed to fetch weather data: ${response.status} ${response.statusText}`);
   }
 
   const data = await response.json();
 
   if (!data.daily || !data.daily.time || data.daily.time.length === 0) {
-    throw new Error('No weather data available for this date');
+    throw new Error('No weather data available for this date range');
   }
 
-  return {
-    date: data.daily.time[0],
-    temperature_max: data.daily.temperature_2m_max[0],
-    temperature_min: data.daily.temperature_2m_min[0],
-    temperature_mean: data.daily.temperature_2m_mean[0],
-    precipitation: data.daily.precipitation_sum[0],
-    weathercode: data.daily.weathercode[0],
-    windspeed_max: data.daily.windspeed_10m_max[0],
-    windDirection: data.daily.winddirection_10m_dominant[0],
-    sunrise: data.daily.sunrise[0],
-    sunset: data.daily.sunset[0],
-  };
+  // Map all days in the response to WeatherData objects
+  return data.daily.time.map((date: string, index: number) => ({
+    date,
+    temperature_max: data.daily.temperature_2m_max[index],
+    temperature_min: data.daily.temperature_2m_min[index],
+    temperature_mean: data.daily.temperature_2m_mean[index],
+    precipitation: data.daily.precipitation_sum[index],
+    weathercode: data.daily.weathercode[index],
+    windspeed_max: data.daily.windspeed_10m_max[index],
+    windDirection: data.daily.winddirection_10m_dominant[index],
+    sunrise: data.daily.sunrise[index],
+    sunset: data.daily.sunset[index],
+  }));
+};
+
+// Fetch historical weather data for a single date (convenience wrapper)
+export const getHistoricalWeather = async (
+  latitude: number,
+  longitude: number,
+  date: string,
+  temperatureUnit: TemperatureUnit = 'fahrenheit'
+): Promise<WeatherData> => {
+  const results = await getHistoricalWeatherRange(latitude, longitude, date, date, temperatureUnit);
+  return results[0];
 };

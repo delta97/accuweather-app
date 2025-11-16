@@ -13,15 +13,20 @@ import {
   faCloudSun,
   faCloudMoon,
 } from '@fortawesome/free-solid-svg-icons';
-import type { WeatherData } from '../services/weatherApi';
+import type { WeatherData, TemperatureUnit } from '../services/weatherApi';
 import { getWeatherDescription } from '../services/weatherApi';
 
 interface WeatherDisplayProps {
   weather: WeatherData;
   locationName: string;
+  temperatureUnit: TemperatureUnit;
 }
 
-export default function WeatherDisplay({ weather, locationName }: WeatherDisplayProps) {
+export default function WeatherDisplay({ weather, locationName, temperatureUnit }: WeatherDisplayProps) {
+  const tempSymbol = temperatureUnit === 'fahrenheit' ? '°F' : '°C';
+  const windUnit = temperatureUnit === 'fahrenheit' ? 'mph' : 'km/h';
+  const precipUnit = temperatureUnit === 'fahrenheit' ? 'in' : 'mm';
+
   const getWeatherIcon = (code: number) => {
     if (code === 0 || code === 1) return faSun;
     if (code === 2 || code === 3) return faCloud;
@@ -72,7 +77,7 @@ export default function WeatherDisplay({ weather, locationName }: WeatherDisplay
 
         <div>
           <h2 className="text-4xl md:text-5xl font-bold mb-2">
-            {Math.round(weather.temperature_mean)}°C
+            {Math.round(weather.temperature_mean)}{tempSymbol}
           </h2>
           <p className="text-xl md:text-2xl font-medium opacity-90">
             {getWeatherDescription(weather.weathercode)}
@@ -93,7 +98,7 @@ export default function WeatherDisplay({ weather, locationName }: WeatherDisplay
             <FontAwesomeIcon icon={faTemperatureHigh} className="text-2xl" />
             <span className="text-sm font-medium opacity-75">High</span>
           </div>
-          <p className="text-3xl font-bold">{Math.round(weather.temperature_max)}°C</p>
+          <p className="text-3xl font-bold">{Math.round(weather.temperature_max)}{tempSymbol}</p>
         </div>
 
         <div className="bg-white/30 backdrop-blur-sm rounded-2xl p-6 shadow-lg">
@@ -101,7 +106,7 @@ export default function WeatherDisplay({ weather, locationName }: WeatherDisplay
             <FontAwesomeIcon icon={faTemperatureLow} className="text-2xl" />
             <span className="text-sm font-medium opacity-75">Low</span>
           </div>
-          <p className="text-3xl font-bold">{Math.round(weather.temperature_min)}°C</p>
+          <p className="text-3xl font-bold">{Math.round(weather.temperature_min)}{tempSymbol}</p>
         </div>
       </div>
 
@@ -114,7 +119,7 @@ export default function WeatherDisplay({ weather, locationName }: WeatherDisplay
             <span className="font-medium">Wind</span>
           </div>
           <p className="text-2xl font-bold">
-            {Math.round(weather.windspeed_max)} km/h
+            {Math.round(weather.windspeed_max)} {windUnit}
           </p>
           <p className="text-sm opacity-75 mt-1">
             Direction: {getWindDirection(weather.windDirection)} ({weather.windDirection}°)
@@ -128,7 +133,7 @@ export default function WeatherDisplay({ weather, locationName }: WeatherDisplay
             <span className="font-medium">Precipitation</span>
           </div>
           <p className="text-2xl font-bold">
-            {weather.precipitation.toFixed(1)} mm
+            {weather.precipitation.toFixed(temperatureUnit === 'fahrenheit' ? 2 : 1)} {precipUnit}
           </p>
           <p className="text-sm opacity-75 mt-1">
             {weather.precipitation === 0 ? 'No rainfall' : 'Total rainfall'}

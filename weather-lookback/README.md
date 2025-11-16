@@ -126,15 +126,30 @@ This application uses the [Open-Meteo API](https://open-meteo.com/), which provi
 
 ### Endpoints Used
 
+The application intelligently selects the appropriate endpoint based on the requested date:
+
 1. **Geocoding API**: Convert location names to coordinates
    ```
    https://geocoding-api.open-meteo.com/v1/search
    ```
 
-2. **Archive API**: Fetch historical weather data
+2. **Archive API**: Fetch historical weather data (dates > 5 days old)
    ```
-   https://api.open-meteo.com/v1/archive
+   https://archive-api.open-meteo.com/v1/archive
    ```
+   - Data range: 1940 to present (with 5-day delay)
+   - Used for historical weather lookups
+
+3. **Forecast API**: Fetch recent and current weather data (dates ≤ 5 days old)
+   ```
+   https://api.open-meteo.com/v1/forecast
+   ```
+   - Includes recent past days and future forecasts
+   - Used for current/recent weather conditions
+
+**Automatic Selection**: The app automatically chooses between Archive and Forecast APIs based on how old the requested date is, ensuring you always get the most accurate data available.
+
+For detailed API documentation, see [docs/open-meteo-api.md](docs/open-meteo-api.md).
 
 ## Weather Codes
 

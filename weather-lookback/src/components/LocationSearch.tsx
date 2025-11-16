@@ -13,6 +13,7 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
   const [results, setResults] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [isSelected, setIsSelected] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -27,6 +28,11 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
   }, []);
 
   useEffect(() => {
+    // Don't search if a location was just selected
+    if (isSelected) {
+      return;
+    }
+
     const searchTimer = setTimeout(async () => {
       if (query.length >= 2) {
         setLoading(true);
@@ -47,12 +53,18 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
     }, 300);
 
     return () => clearTimeout(searchTimer);
-  }, [query]);
+  }, [query, isSelected]);
 
   const handleSelect = (location: Location) => {
+    setIsSelected(true);
     setQuery(`${location.name}, ${location.country}`);
     setShowResults(false);
     onLocationSelect(location);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsSelected(false);
+    setQuery(e.target.value);
   };
 
   return (
@@ -67,7 +79,7 @@ export default function LocationSearch({ onLocationSelect }: LocationSearchProps
         <input
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={handleInputChange}
           placeholder="Search city or zip code..."
           className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all duration-200 text-gray-800 placeholder-gray-400 bg-white"
         />

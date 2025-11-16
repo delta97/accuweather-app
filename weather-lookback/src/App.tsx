@@ -4,8 +4,10 @@ import { faCloudSun, faSpinner, faExclamationCircle } from '@fortawesome/free-so
 import LocationSearch from './components/LocationSearch';
 import DatePicker from './components/DatePicker';
 import WeatherDisplay from './components/WeatherDisplay';
-import type { Location, WeatherData } from './services/weatherApi';
-import { getHistoricalWeather, getWeatherTheme } from './services/weatherApi';
+import WeatherRange from './components/WeatherRange';
+import Settings from './components/Settings';
+import type { Location, WeatherData, TemperatureUnit } from './services/weatherApi';
+import { getHistoricalWeatherRange, getWeatherTheme } from './services/weatherApi';
 
 function App() {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
@@ -15,8 +17,10 @@ function App() {
     return yesterday.toISOString().split('T')[0];
   });
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
+  const [weatherRange, setWeatherRange] = useState<WeatherData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [temperatureUnit, setTemperatureUnit] = useState<TemperatureUnit>('fahrenheit');
 
   const theme = weatherData ? getWeatherTheme(weatherData.weathercode) : null;
 
@@ -30,15 +34,39 @@ function App() {
     setError(null);
 
     try {
-      const data = await getHistoricalWeather(
+      // Calculate date range: 5 days before and after the selected date
+      const selectedDateObj = new Date(selectedDate);
+      const startDateObj = new Date(selectedDateObj);
+      startDateObj.setDate(startDateObj.getDate() - 5);
+      const endDateObj = new Date(selectedDateObj);
+      endDateObj.setDate(endDateObj.getDate() + 5);
+
+      const startDate = startDateObj.toISOString().split('T')[0];
+      const endDate = endDateObj.toISOString().split('T')[0];
+
+      // Fetch all 11 days in a single API call
+      const rangeData = await getHistoricalWeatherRange(
         selectedLocation.latitude,
         selectedLocation.longitude,
-        selectedDate
+        startDate,
+        endDate,
+        temperatureUnit
       );
-      setWeatherData(data);
+
+      setWeatherRange(rangeData);
+
+      // Find the selected date in the range
+      const selectedDayData = rangeData.find(day => day.date === selectedDate);
+      if (selectedDayData) {
+        setWeatherData(selectedDayData);
+      } else {
+        // Fallback: use the middle day (day 5, index 5)
+        setWeatherData(rangeData[5] || rangeData[0]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch weather data');
       setWeatherData(null);
+      setWeatherRange([]);
     } finally {
       setLoading(false);
     }
@@ -54,11 +82,20 @@ function App() {
         {/* Header */}
         <header className="py-8 px-4">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-center gap-3 mb-2">
-              <FontAwesomeIcon icon={faCloudSun} className="text-4xl text-white drop-shadow-lg" />
-              <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
-                Weather Lookback
-              </h1>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex-1"></div>
+              <div className="flex items-center gap-3">
+                <FontAwesomeIcon icon={faCloudSun} className="text-4xl text-white drop-shadow-lg" />
+                <h1 className="text-4xl md:text-5xl font-bold text-white drop-shadow-lg">
+                  Weather Lookback
+                </h1>
+              </div>
+              <div className="flex-1 flex justify-end">
+                <Settings
+                  temperatureUnit={temperatureUnit}
+                  onTemperatureUnitChange={setTemperatureUnit}
+                />
+              </div>
             </div>
             <p className="text-center text-white/90 text-lg md:text-xl">
               Explore 80 years of weather history
@@ -93,7 +130,7 @@ function App() {
                 <button
                   onClick={handleSearch}
                   disabled={loading || !selectedLocation}
-                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] disabled:transform-none flex items-center justify-center gap-2"
                 >
                   {loading ? (
                     <>
@@ -118,6 +155,21 @@ function App() {
               </div>
             )}
 
+            {/* Weather Range */}
+            {weatherRange.length > 0 && selectedLocation && !error && (
+              <div
+                className={`rounded-2xl shadow-2xl p-6 md:p-8 mb-8 transition-all duration-500 ${
+                  theme ? `${theme.cardBg} ${theme.textColor}` : 'bg-white/20 backdrop-blur-lg text-white'
+                }`}
+              >
+                <WeatherRange
+                  weatherRange={weatherRange}
+                  selectedDate={selectedDate}
+                  temperatureUnit={temperatureUnit}
+                />
+              </div>
+            )}
+
             {/* Weather Display */}
             {weatherData && selectedLocation && !error && (
               <div
@@ -128,6 +180,7 @@ function App() {
                 <WeatherDisplay
                   weather={weatherData}
                   locationName={`${selectedLocation.name}, ${selectedLocation.country}`}
+                  temperatureUnit={temperatureUnit}
                 />
               </div>
             )}
